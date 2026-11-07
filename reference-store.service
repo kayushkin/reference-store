@@ -18,7 +18,7 @@ Environment=REFERENCE_STORE_SITE_URLS=music:https://kayushkin.com
 Environment=REFERENCE_STORE_PRINCIPAL_STORE_URL=http://127.0.0.1:8314
 Environment=REFERENCE_STORE_GRANT_STORE_URL=http://127.0.0.1:8315
 Environment=REFERENCE_STORE_AUTH_STORE_URL=http://127.0.0.1:8303
-Environment=REFERENCE_STORE_AUTH_STORE_PROVIDERS=multichat:multichat
+Environment=REFERENCE_STORE_AUTH_STORE_PROVIDERS=multichat:multichat,music-practice-store:music-practice-store-reader
 
 WorkingDirectory=%h
 Restart=on-failure
