@@ -113,7 +113,11 @@ type ReferenceType struct {
 	// site drawing the chip.
 	PageSite string `json:"page_site,omitempty"`
 	// Glyph is the chip's symbol.
-	Glyph      string     `json:"glyph,omitempty"`
+	Glyph string `json:"glyph,omitempty"`
+	// Attachment is the owning service's route for a picture of the record,
+	// "{id}" marking the id: what a chat sends as an attached file beside the
+	// record's link. Empty: the record has none.
+	Attachment string     `json:"attachment,omitempty"`
 	Access     Access     `json:"access"`
 	Credential Credential `json:"credential,omitempty"`
 
@@ -280,6 +284,7 @@ func buildTypes() []ReferenceType {
 			LabelField: "description",
 			Summary:    []SummaryField{seconds("taken_at", "Taken"), text("folder", "Folder")},
 			Page:       "/photos?id={id}",
+			Attachment: "/photos/{id}/thumbnail",
 			Access:     AccessByGrant,
 		},
 		{
@@ -434,11 +439,13 @@ func buildTypes() []ReferenceType {
 		{"musical_instrument", "/musical-instruments/{id}", "A musical instrument the operator owns."},
 		{"vehicle", "/vehicles/{id}", "A vehicle the operator owns."},
 	} {
-		rows = append(rows, possessionType(kind.typeName, kind.get, kind.description, "name", possession, "/possessions?id={data.id}"))
+		row := possessionType(kind.typeName, kind.get, kind.description, "name", possession, "/possessions?id={data.id}")
+		row.Attachment = kind.get + "/image"
+		rows = append(rows, row)
 	}
 	rows = append(rows,
-		possessionType("outfit", "/outfits/{id}", "Garments worn together.", "name",
-			[]SummaryField{text("occasion", "Occasion"), text("status", "Status")}, "/outfits?id={id}"),
+		withAttachment(possessionType("outfit", "/outfits/{id}", "Garments worn together.", "name",
+			[]SummaryField{text("occasion", "Occasion"), text("status", "Status")}, "/outfits?id={id}"), "/outfits/{id}/image"),
 		possessionType("possession_purchase", "/purchases/{id}", "A purchase of possessions.", "seller",
 			[]SummaryField{text("marketplace", "Where"), seconds("ordered_at", "Ordered"), {"total_cents", "Total", FormatCents}}, ""),
 		possessionType("product", "/products/{id}", "A make and model, as its maker's listing describes it.", "name",
@@ -464,6 +471,12 @@ func budgetType(typeName, idPrefix, get, labelField, description string, summary
 		Get: get, IDPatterns: []string{idPrefix + `_\d{6,}`}, LabelField: labelField,
 		Summary: summary, Page: page, Access: AccessByGrant,
 	}
+}
+
+// withAttachment gives a row the route that serves a picture of its record.
+func withAttachment(row ReferenceType, attachment string) ReferenceType {
+	row.Attachment = attachment
+	return row
 }
 
 func possessionType(typeName, get, description, labelField string, summary []SummaryField, page string) ReferenceType {

@@ -3,6 +3,7 @@ package referencestore
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -254,5 +255,46 @@ func TestACallerMustBeNamed(t *testing.T) {
 		if response.StatusCode != http.StatusUnauthorized {
 			t.Errorf("headers %v: %d, want 401", header, response.StatusCode)
 		}
+	}
+}
+
+func TestAPictureGoesOnlyToWhoMaySeeTheRecord(t *testing.T) {
+	s := newStores(t)
+	photos := http.NewServeMux()
+	photos.HandleFunc("GET /photos/{id}", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"id":"` + r.PathValue("id") + `","description":"a beach"}`))
+	})
+	photos.HandleFunc("GET /photos/{id}/thumbnail", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.Write([]byte{0xff, 0xd8, 0xff})
+	})
+	photoStore := httptest.NewServer(photos)
+	defer photoStore.Close()
+	resolver := &Resolver{
+		Types: Types, ServiceURLs: map[string]string{"photo-store": photoStore.URL},
+		Credentials: &Credentials{HTTPClient: http.DefaultClient},
+		Access:      &AccessChecker{PrincipalStoreURL: s.server.URL, GrantStoreURL: s.server.URL, HTTPClient: http.DefaultClient, TTL: time.Minute},
+		HTTPClient:  http.DefaultClient, RecordTTL: time.Minute, MissTTL: time.Minute, LookupTimeout: 5 * time.Second, Concurrency: 4,
+	}
+	mux := http.NewServeMux()
+	RegisterHandlers(mux, &Server{Resolver: resolver, ServiceToken: "service-token"})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	get := func(principal string) (int, string, int) {
+		request, _ := http.NewRequest(http.MethodGet, server.URL+"/attachments/photo_000001", nil)
+		request.Header.Set(PrincipalIDHeader, principal)
+		response, err := http.DefaultClient.Do(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+		body, _ := io.ReadAll(response.Body)
+		return response.StatusCode, response.Header.Get("Content-Type"), len(body)
+	}
+	if status, contentType, size := get("principal_000001"); status != 200 || contentType != "image/jpeg" || size != 3 {
+		t.Errorf("the administrator: %d %s %d", status, contentType, size)
+	}
+	if status, _, _ := get("principal_000003"); status != 404 {
+		t.Errorf("someone who may not see it: %d, want 404", status)
 	}
 }

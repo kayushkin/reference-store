@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -27,6 +28,7 @@ type Server struct {
 //	GET  /vocabulary       the formats, access rules and grant names rows use
 //	POST /resolve          {"ids":[…]} → what each id names, for the caller
 //	GET  /search?q=        records of every mentionable type the caller may see
+//	GET  /attachments/{id} a picture of the record, when the caller may see it
 func RegisterHandlers(mux *http.ServeMux, server *Server) {
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -36,6 +38,7 @@ func RegisterHandlers(mux *http.ServeMux, server *Server) {
 	mux.HandleFunc("GET /vocabulary", server.vocabulary)
 	mux.HandleFunc("POST /resolve", server.resolve)
 	mux.HandleFunc("GET /search", server.search)
+	mux.HandleFunc("GET /attachments/{id}", server.attachment)
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {
@@ -265,4 +268,25 @@ func (s *Server) searchOne(ctx context.Context, caller Caller, row *ReferenceTyp
 		return nil, fmt.Errorf("%s answered something that is not JSON", row.Service)
 	}
 	return body, nil
+}
+
+func (s *Server) attachment(w http.ResponseWriter, r *http.Request) {
+	caller, ok := s.callerOf(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, callerRequired)
+		return
+	}
+	id := r.PathValue("id")
+	contentType, data, err := s.Resolver.Attachment(r.Context(), caller, id)
+	if errors.Is(err, ErrNoAttachment) {
+		writeError(w, http.StatusNotFound, fmt.Sprintf("%s names no record with a picture that you may see", id))
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "private, no-store")
+	w.Write(data)
 }

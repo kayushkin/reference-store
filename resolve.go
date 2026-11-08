@@ -344,3 +344,67 @@ func (r *Resolver) pageURL(row *ReferenceType, id string, data json.RawMessage) 
 	}
 	return page
 }
+
+// MaximumAttachmentBytes is the largest picture an attachment carries: what a
+// chat platform takes as one file (Discord's limit for a bot).
+const MaximumAttachmentBytes = 10 << 20
+
+// ErrNoAttachment is an id that names no one record the caller may see with a
+// picture: unknown, refused, claimed by several stores, or of a type with none.
+var ErrNoAttachment = errors.New("no attachment")
+
+// Attachment is a picture of the one record id names, for the caller: its
+// bytes and content type, from the owning service's attachment route.
+func (r *Resolver) Attachment(ctx context.Context, caller Caller, id string) (string, []byte, error) {
+	results, errs := r.Resolve(ctx, caller, []string{id})
+	if len(errs) > 0 {
+		return "", nil, fmt.Errorf("%s: %s", errs[0].Type, errs[0].Error)
+	}
+	matches := results[id]
+	if len(matches) != 1 || matches[0].Refused {
+		return "", nil, ErrNoAttachment
+	}
+	var row *ReferenceType
+	for i := range r.Types {
+		if r.Types[i].Type == matches[0].Type {
+			row = &r.Types[i]
+		}
+	}
+	if row == nil || row.Attachment == "" {
+		return "", nil, ErrNoAttachment
+	}
+	ctx, cancel := context.WithTimeout(ctx, r.LookupTimeout)
+	defer cancel()
+	target := strings.TrimRight(r.ServiceURLs[row.Service], "/") + strings.Replace(row.Attachment, "{id}", url.PathEscape(id), 1)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	if err != nil {
+		return "", nil, err
+	}
+	if err := r.Credentials.Apply(ctx, request, row); err != nil {
+		return "", nil, err
+	}
+	response, err := r.HTTPClient.Do(request)
+	if err != nil {
+		return "", nil, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode == http.StatusNotFound {
+		// The record has no picture (an outfit nobody photographed).
+		return "", nil, ErrNoAttachment
+	}
+	body, err := io.ReadAll(io.LimitReader(response.Body, MaximumAttachmentBytes+1))
+	if err != nil {
+		return "", nil, err
+	}
+	if response.StatusCode != http.StatusOK {
+		return "", nil, fmt.Errorf("%s answered %d: %s", row.Service, response.StatusCode, firstLine(body))
+	}
+	if len(body) > MaximumAttachmentBytes {
+		return "", nil, fmt.Errorf("%s's picture of %s is over %d bytes", row.Service, id, MaximumAttachmentBytes)
+	}
+	contentType := response.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "image/") {
+		return "", nil, fmt.Errorf("%s answered %q for a picture of %s", row.Service, contentType, id)
+	}
+	return contentType, body, nil
+}
