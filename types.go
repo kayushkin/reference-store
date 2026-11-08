@@ -288,6 +288,17 @@ func buildTypes() []ReferenceType {
 			Access:     AccessByGrant,
 		},
 		{
+			Type: "face_group", Service: "photo-store", Glyph: "🙂",
+			Description: "Faces the face model found to be one person, with who they are once named.",
+			Get:         "/face-groups/{id}", IDPatterns: []string{`face_group_\d{6,}`},
+			// A group has no name of its own: the person it names is a summary
+			// field, drawn as that person's chip.
+			Summary: []SummaryField{reference("person_id", "Person"), text("status", "Status"),
+				{"photo_count", "Photos", FormatNumber}},
+			Page:   "/faces?id={id}",
+			Access: AccessByGrant,
+		},
+		{
 			Type: "place", Service: "location-store", Glyph: "📍",
 			Description: "A named place.",
 			Get:         "/places/{id}", IDPatterns: []string{`place_\d{6,}`},
