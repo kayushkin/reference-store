@@ -215,7 +215,11 @@ func (r *Resolver) cachedFetch(ctx context.Context, key string, row *ReferenceTy
 func (r *Resolver) fetch(ctx context.Context, row *ReferenceType, id string, caller Caller, asCaller bool) (json.RawMessage, bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.LookupTimeout)
 	defer cancel()
-	target := strings.TrimRight(r.ServiceURLs[row.Service], "/") + strings.Replace(row.Get, "{id}", url.PathEscape(id), 1)
+	baseURL, err := r.serviceURL(row.Service)
+	if err != nil {
+		return nil, false, err
+	}
+	target := baseURL + strings.Replace(row.Get, "{id}", url.PathEscape(id), 1)
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return nil, false, err
@@ -340,7 +344,11 @@ func (r *Resolver) pageURL(row *ReferenceType, id string, data json.RawMessage) 
 	}
 	page := builder.String()
 	if row.PageSite != "" {
-		return strings.TrimRight(r.SiteURLs[row.PageSite], "/") + page
+		siteURL := r.SiteURLs[row.PageSite]
+		if siteURL == "" {
+			return ""
+		}
+		return strings.TrimRight(siteURL, "/") + page
 	}
 	return page
 }
@@ -375,7 +383,11 @@ func (r *Resolver) Attachment(ctx context.Context, caller Caller, id string) (st
 	}
 	ctx, cancel := context.WithTimeout(ctx, r.LookupTimeout)
 	defer cancel()
-	target := strings.TrimRight(r.ServiceURLs[row.Service], "/") + strings.Replace(row.Attachment, "{id}", url.PathEscape(id), 1)
+	baseURL, err := r.serviceURL(row.Service)
+	if err != nil {
+		return "", nil, err
+	}
+	target := baseURL + strings.Replace(row.Attachment, "{id}", url.PathEscape(id), 1)
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return "", nil, err
@@ -407,4 +419,13 @@ func (r *Resolver) Attachment(ctx context.Context, caller Caller, id string) (st
 		return "", nil, fmt.Errorf("%s answered %q for a picture of %s", row.Service, contentType, id)
 	}
 	return contentType, body, nil
+}
+
+// serviceURL refuses to turn an unconfigured service into a relative request.
+func (r *Resolver) serviceURL(service string) (string, error) {
+	address := r.ServiceURLs[service]
+	if address == "" {
+		return "", fmt.Errorf("service %q is not configured", service)
+	}
+	return strings.TrimRight(address, "/"), nil
 }

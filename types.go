@@ -2,6 +2,7 @@ package referencestore
 
 import (
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 )
@@ -531,9 +532,9 @@ func TypeNamed(name string) *ReferenceType {
 	return nil
 }
 
-// CheckTypes is run at start: every row is whole, and every service a
-// resolvable or searchable row names has an address.
-func CheckTypes(types []ReferenceType, serviceURLs, siteURLs map[string]string) error {
+// ValidateReferenceConfiguration checks the catalog and supplied addresses.
+// Services and page sites may be unconfigured on this deployment.
+func ValidateReferenceConfiguration(types []ReferenceType, serviceURLs, siteURLs map[string]string) error {
 	seen := map[string]bool{}
 	formats := map[Format]bool{}
 	for _, format := range Formats {
@@ -548,15 +549,20 @@ func CheckTypes(types []ReferenceType, serviceURLs, siteURLs map[string]string) 
 		if row.Access != AccessByGrant && row.Access != AccessByOwner {
 			problems = append(problems, fmt.Sprintf("type %q has access %q", row.Type, row.Access))
 		}
-		if (row.Get != "" || row.Search != "") && serviceURLs[row.Service] == "" {
-			problems = append(problems, fmt.Sprintf("type %q names service %q, which service_urls has no address for", row.Type, row.Service))
-		}
-		if row.PageSite != "" && siteURLs[row.PageSite] == "" {
-			problems = append(problems, fmt.Sprintf("type %q puts its page on site %q, which site_urls has no address for", row.Type, row.PageSite))
-		}
 		for _, field := range row.Summary {
 			if !formats[field.Format] {
 				problems = append(problems, fmt.Sprintf("type %q summary field %q has format %q", row.Type, field.Field, field.Format))
+			}
+		}
+	}
+	for kind, addresses := range map[string]map[string]string{"service": serviceURLs, "site": siteURLs} {
+		for name, address := range addresses {
+			if address == "" {
+				continue
+			}
+			parsed, err := url.Parse(address)
+			if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+				problems = append(problems, fmt.Sprintf("%s %q needs an absolute HTTP or HTTPS address", kind, name))
 			}
 		}
 	}

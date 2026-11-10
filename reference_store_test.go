@@ -73,7 +73,16 @@ func TestTheUnitAddressesEveryService(t *testing.T) {
 		}
 		return pairs
 	}
-	if err := CheckTypes(Types, read("REFERENCE_STORE_SERVICE_URLS"), read("REFERENCE_STORE_SITE_URLS")); err != nil {
+	serviceURLs, siteURLs := read("REFERENCE_STORE_SERVICE_URLS"), read("REFERENCE_STORE_SITE_URLS")
+	for _, row := range Types {
+		if (row.Get != "" || row.Search != "") && serviceURLs[row.Service] == "" {
+			t.Errorf("unit has no address for %s", row.Service)
+		}
+		if row.PageSite != "" && siteURLs[row.PageSite] == "" {
+			t.Errorf("unit has no address for site %s", row.PageSite)
+		}
+	}
+	if err := ValidateReferenceConfiguration(Types, serviceURLs, siteURLs); err != nil {
 		t.Fatal(err)
 	}
 }

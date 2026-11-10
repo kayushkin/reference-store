@@ -59,8 +59,8 @@ func SettingDefinitions() []servicesettings.Definition {
 	return []servicesettings.Definition{
 		{Key: SettingListenAddress, EnvironmentVariable: "REFERENCE_STORE_ADDR", Kind: wiring, ValueType: text, Default: DefaultListenAddress,
 			Description: "The address the HTTP server listens on. Keep it on loopback: the service trusts X-Principal-Id."},
-		{Key: SettingServiceURLs, EnvironmentVariable: "REFERENCE_STORE_SERVICE_URLS", Kind: wiring, ValueType: pairs, Required: true,
-			Description: "service:url pairs, one for every service a reference type names, e.g. noteboard:http://127.0.0.1:8191. A type whose service has no address here stops the service at start."},
+		{Key: SettingServiceURLs, EnvironmentVariable: "REFERENCE_STORE_SERVICE_URLS", Kind: wiring, ValueType: pairs,
+			Description: "service:url pairs for services configured on this deployment. A lookup or search for an unconfigured service returns an explicit error."},
 		{Key: SettingSiteURLs, EnvironmentVariable: "REFERENCE_STORE_SITE_URLS", Kind: wiring, ValueType: pairs,
 			Description: "site:url pairs for record pages served somewhere other than the page that draws the chip, e.g. music:https://example.com. A type whose page names a site missing here has no page link."},
 		{Key: SettingPrincipalStoreURL, EnvironmentVariable: "REFERENCE_STORE_PRINCIPAL_STORE_URL", Kind: wiring, ValueType: text, Required: true,

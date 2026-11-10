@@ -25,7 +25,7 @@ func main() {
 	}
 	serviceURLs := settings.StringMap(referencestore.SettingServiceURLs)
 	siteURLs := settings.StringMap(referencestore.SettingSiteURLs)
-	if err := referencestore.CheckTypes(referencestore.Types, serviceURLs, siteURLs); err != nil {
+	if err := referencestore.ValidateReferenceConfiguration(referencestore.Types, serviceURLs, siteURLs); err != nil {
 		log.Fatal(err)
 	}
 	seconds := func(key string) time.Duration { return time.Duration(settings.Integer(key)) * time.Second }

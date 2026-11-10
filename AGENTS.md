@@ -32,7 +32,7 @@ A store's answer for (type, id) is reused for `record_cache_seconds` (60), and a
 
 ## Adding a type
 
-One row in `types.go`. A new service also needs its address in the unit's `REFERENCE_STORE_SERVICE_URLS`: the service refuses to start, and `TestTheUnitAddressesEveryService` fails, when a row names a service with no address. `TestNoTwoTypesClaimOneID` holds that no two patterns claim one id. Check each summary field and the page against a real record before you ship the row: a missing field shows nothing, and a page placeholder the record lacks leaves no link.
+One row in `types.go`. Configure deployed services in `REFERENCE_STORE_SERVICE_URLS`. Unconfigured services remain in the catalog; lookups and searches return explicit errors without sending a request. An unconfigured page site leaves the page link empty. The supplied unit covers the full catalog, checked by `TestTheUnitAddressesEveryService`. `TestNoTwoTypesClaimOneID` holds that no two patterns claim one id. Check each summary field and the page against a real record before you ship the row: a missing field shows nothing, and a page placeholder the record lacks leaves no link.
 
 A type with no page of its own leaves `page` empty; the chip then opens the generic record page that shows any record.
 

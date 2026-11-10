@@ -241,7 +241,11 @@ func (s *Server) mayAskTypeWhole(ctx context.Context, caller Caller, row *Refere
 func (s *Server) searchOne(ctx context.Context, caller Caller, row *ReferenceType, query string) (json.RawMessage, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.Resolver.LookupTimeout)
 	defer cancel()
-	target := strings.TrimRight(s.Resolver.ServiceURLs[row.Service], "/") + row.Search + url.QueryEscape(query)
+	baseURL, err := s.Resolver.serviceURL(row.Service)
+	if err != nil {
+		return nil, err
+	}
+	target := baseURL + row.Search + url.QueryEscape(query)
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return nil, err

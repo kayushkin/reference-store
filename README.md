@@ -20,4 +20,6 @@ git clone https://github.com/kayushkin/reference-store
 cd reference-store && go test ./...
 ```
 
+Deployments may configure only their own services in `REFERENCE_STORE_SERVICE_URLS`. The catalog stays complete; resolving or searching an unconfigured service returns an error, never a missing-record answer. Missing page-site addresses leave page links empty. Configured addresses must be absolute HTTP or HTTPS URLs.
+
 MIT licensed.
