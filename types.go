@@ -289,6 +289,18 @@ func buildTypes() []ReferenceType {
 			Access:     AccessByGrant,
 		},
 		{
+			Type: "scheduler_job", Service: "scheduler", Glyph: "⏰",
+			Description: "A scheduled job: a shell command or an agent prompt run on a cron schedule or on bus events.",
+			// The scheduler numbers jobs 1, 2, 3; scheduler_job_000076 is how
+			// text names job 76, and the route takes that form.
+			Get: "/api/job-references/{id}", IDPatterns: []string{`scheduler_job_\d{6,}`},
+			LabelField: "name",
+			Summary: []SummaryField{text("schedule", "Schedule"), text("enabled", "Enabled"),
+				text("last_run.status", "Last run"), {"last_run.finished_at", "Finished", FormatISOTime}},
+			Page:   "/scheduler?id={data.id}",
+			Access: AccessByGrant,
+		},
+		{
 			Type: "face_group", Service: "photo-store", Glyph: "🙂",
 			Description: "Faces the face model found to be one person, with who they are once named.",
 			Get:         "/face-groups/{id}", IDPatterns: []string{`face_group_\d{6,}`},
