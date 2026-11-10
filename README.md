@@ -12,4 +12,12 @@ curl -s -X POST localhost:8343/resolve -H 'X-Reference-Store-Service-Token: …'
 
 It has no database. It trusts `X-Principal-Id`, so it listens on loopback and is reached through llm-bridge-server's gateway. `AGENTS.md` says how it works.
 
+`go.mod` points at [llm-bridge](https://github.com/kayushkin/llm-bridge) in a folder beside this one, so clone both side by side before you build:
+
+```bash
+git clone https://github.com/kayushkin/llm-bridge
+git clone https://github.com/kayushkin/reference-store
+cd reference-store && go test ./...
+```
+
 MIT licensed.
